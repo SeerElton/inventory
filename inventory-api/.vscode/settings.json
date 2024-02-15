@@ -1,0 +1,21 @@
+{
+  "cSpell.words": [
+    "Gotbot"
+  ],
+  "sqltools.connections": [
+    {
+      "mysqlOptions": {
+        "authProtocol": "default",
+        "enableSsl": "Disabled"
+      },
+      "previewLimit": 50,
+      "server": "154.0.170.54",
+      "port": 3306,
+      "driver": "MySQL",
+      "name": "bbb",
+      "username": "drnetwmo_gotbotapp",
+      "database": "drnetwmo_gotbotapp",
+      "password": "rui9834JHKB@24"
+    }
+  ]
+}
