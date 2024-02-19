@@ -1,0 +1,41 @@
+<div class="hold-transition login-page mb-5 auth-box">
+  <div class="login-box ">
+    <div class="row d-flex justify-content-center">
+      <div class="col-lg-3 mt-20vh col-md-8 col-sm-12">
+        <form [formGroup]="form" (ngSubmit)="login()"
+          class="card border-0 card-box-shadow card-border-radius animate__animated animate__bounceIn">
+          <div class="card-body login-card-body">
+            <div class="login-logo text-center p-4">
+              <a [routerLink]="['/']"><img src="/assets/img/logo.png" class="auth-logo" /></a>
+            </div>
+
+            <div class="input-group mb-3">
+              <input type="text" class="form-control" formControlName="email" placeholder="Email">
+              <div class="input-group-append">
+                <div class="input-group-text">
+                  <span class="fas fa-envelope"></span>
+                </div>
+              </div>
+            </div>
+            <div class="input-group mb-3">
+              <input type="password" class="form-control" formControlName="password" placeholder="Password">
+              <div class="input-group-append">
+                <div class="input-group-text">
+                  <span class="fas fa-lock"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="social-auth-links mb-3">
+
+              <button type="submit" class="btn btn-outline-primary w-100">Sign in</button>
+            </div>
+            <p class="mb-1">
+              <a [routerLink]="['/auth/register']">register</a>
+            </p>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

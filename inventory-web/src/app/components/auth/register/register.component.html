@@ -1,0 +1,94 @@
+<div class="hold-transition mb-5 auth-box">
+    <div class="row d-flex justify-content-center">
+        <div class="col-lg-3 mt-20vh col-md-8 col-sm-12">
+            <form [formGroup]="form" (ngSubmit)="register()"
+                class="card border-0 card-box-shadow card-border-radius animate__animated animate__bounceIn">
+                <div class="card-body login-card-body">
+                    <div class="login-logo text-center p-4">
+                        <a><img src="/assets/img/logo.png" class="auth-logo" /></a>
+                    </div>
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" formControlName="name" placeholder="Name">
+                        <div class="input-group-append">
+                            <div class="input-group-text">
+                                <span class="fas fa-user"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-light"
+                        *ngIf="nameFormField.errors && (nameFormField.dirty || nameFormField.touched)">
+                        <small *ngIf="nameFormField.errors['required']">
+                            Name is required.
+                        </small>
+                        <small *ngIf="nameFormField.errors['pattern']">
+                            Please enter a valid name.
+                        </small>
+                    </div>
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" formControlName="email" placeholder="Email">
+                        <div class="input-group-append">
+                            <div class="input-group-text">
+                                <span class="fas fa-envelope"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-group mb-3">
+                        <input type="password" class="form-control" formControlName="password" placeholder="Password">
+                        <div class="input-group-append">
+                            <div class="input-group-text">
+                                <span class="fas fa-lock"></span>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="alert-alert-light" *ngIf="passwordFormField?.dirty && passwordFormField.invalid">
+                        <small class="block"
+                            [ngClass]="{'text-primary': passwordFormField?.value?.match('^(?=.*[A-Z])')}">At least
+                            oneu ppercase
+                            letter.</small>
+
+                        <small class="block"
+                            [ngClass]="{'text-primary': passwordFormField?.value?.match('(.*[0-9].*)')}">At least
+                            one
+                            digit.</small>
+                        <small class="block"
+                            [ngClass]="{'text-primary': passwordFormField?.value?.match('(?=.*[!@#$%^&*])')}">At
+                            least one
+                            special
+                            character.</small>
+                        <small class="block" [ngClass]="{'text-primary': passwordFormField?.value?.match('.{8,}')}">At
+                            least 8
+                            characters
+                            long.</small>
+                    </div>
+                    <div class="input-group mb-3">
+                        <input type="password" class="form-control" formControlName="confirmPassword"
+                            placeholder="Confirm Password">
+                        <div class="input-group-append">
+                            <div class="input-group-text">
+                                <span class="fas fa-lock"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-light"
+                        *ngIf="confirmationPasswordFormField.value && confirmationPasswordFormField.value !== passwordFormField.value">
+                        <small class="block">
+                            Passwords dont match
+                        </small>
+
+                    </div>
+
+                    <div class="social-auth-links mb-3">
+
+                        <button [disabled]="this.form.valid" type="submit" class="btn btn-outline-primary w-100">Sign
+                            up</button>
+                    </div>
+                    <p class="mb-1">
+                        <a [routerLink]="['/auth/login']">Sign in</a>
+                    </p>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

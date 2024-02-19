@@ -19,7 +19,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Login', description: "This endpoint authenticates a user into our inventory api" })
   @ApiResponse({ status: 200, description: 'Successful operation', type: LoginResponse })
   @ApiResponse({ status: 500, description: 'Internal server error', type: ToastrResponse })
-  async parentLogin(@Body() loginRequest: LoginRequest, @Res() res: Response): Promise<void> {
+  async login(@Body() loginRequest: LoginRequest, @Res() res: Response): Promise<void> {
     try {
       var result = await this.authService.login(loginRequest);
 
@@ -46,9 +46,9 @@ export class AuthController {
   @ApiInternalServerErrorResponse({ description: 'Internal server error', type: ToastrResponse })
   @ApiResponse({ status: 200, description: 'Successful operation', type: ToastrResponse })
   @ApiResponse({ status: 500, description: 'Internal server error', type: ToastrResponse })
-  async addParent(@Body() parentSignUpRequest: RegisterRequest, @Res() res: Response) {
+  async register(@Body() payload: RegisterRequest, @Res() res: Response) {
     try {
-      var results = await this.authService.register(parentSignUpRequest);
+      var results = await this.authService.register(payload);
 
       if (!results.isSuccess)
         res.status(500).json({

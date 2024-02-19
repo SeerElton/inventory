@@ -1,0 +1,17 @@
+svg {
+  overflow: hidden;
+  vertical-align: middle;
+  height: 100%;
+  width: 100%;
+  position: absolute;
+}
+
+img {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin-left: auto;
+  margin-right: auto;
+  opacity: 0.3;
+  /* Need a specific value to work */
+}

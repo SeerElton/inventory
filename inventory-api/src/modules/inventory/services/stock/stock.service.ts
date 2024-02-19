@@ -7,10 +7,12 @@ import { GBStock, GBStockDocument } from '../../../../entities/stock.entity';
 import { StockResponse } from '../../../../dtos/stock-response';
 import { InsertStockRequest } from '../../../../dtos/insert-stock-request';
 import { UpdateStockRequest } from '../../../../dtos/update-stock-request';
+import { StockQuantityService } from '../stock-quantity/stock-quantity.service';
 
 @Injectable()
 export class StockService {
-  constructor(@InjectModel(GBStock.name) private stockModel: Model<GBStockDocument>) { }
+  constructor(@InjectModel(GBStock.name) private stockModel: Model<GBStockDocument>,
+    private stockQuantityService: StockQuantityService) { }
 
   async add(userId: string, entry: InsertStockRequest): Promise<Result<GBStock>> {
     try {
@@ -21,6 +23,9 @@ export class StockService {
         updated: Date.now(),
       });
       await newRecord.save();
+
+      await this.stockQuantityService.add(newRecord._id, entry.initialQuantity);
+
       return new Result(true, newRecord);
     } catch (e) {
       console.error('Error adding stock item', e, codes.StockService_ErrorAddingStockItem);

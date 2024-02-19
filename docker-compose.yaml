@@ -12,7 +12,7 @@ services:
     build:
       context: ./inventory-api
       dockerfile: Dockerfile
-    container_name: got-bot-api
+    container_name: inventory-api
     environment:
       - DB_URL=mongodb://mongodb:27017/inventory_db
     ports:

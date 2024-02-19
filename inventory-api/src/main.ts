@@ -4,6 +4,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AuthTokenDecypherInterceptor } from './_helper/auth-token-decypher.interceptor';
 import * as bodyParser from 'body-parser';
 import { DataValidationInterceptor } from './interceptor/validation.interceptor';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
