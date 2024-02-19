@@ -1,6 +1,6 @@
 Certainly! Below is the README content formatted in Markdown:
 
-```markdown
+
 # Elton's Management Application
 
 This application is designed to facilitate the management of food items in a Kota shop, providing features such as adding, updating, and deleting items. It also includes user registration and login functionalities with authentication using JSON Web Tokens (JWTs). The front-end interface offers a concise dashboard displaying the current inventory levels of the food items.
