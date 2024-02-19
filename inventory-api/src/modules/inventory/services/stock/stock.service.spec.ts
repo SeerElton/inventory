@@ -1,176 +1,143 @@
-// import { StockService } from './stock.service';
-// import { Repository } from 'typeorm';
-// import { Result } from '../../../../dtos/results';
-// import { GBStock } from '../../../../entities/stock.entity';
-// import { InsertStockRequest } from '../../../../dtos/insert-stock-request';
+import { Test, TestingModule } from '@nestjs/testing';
+import { StockService } from './stock.service';
+import { getModelToken } from '@nestjs/mongoose';
+import { Result } from '../../../../dtos/results';
+import { GBStock, GBStockDocument } from '../../../../entities/stock.entity';
+import { StockResponse } from '../../../../dtos/stock-response';
+import { InsertStockRequest } from '../../../../dtos/insert-stock-request';
+import { UpdateStockRequest } from '../../../../dtos/update-stock-request';
+import { StockQuantityService } from '../stock-quantity/stock-quantity.service';
 
-// describe('StockService', () => {
-//     let service: StockService;
-//     let mockRepository: Repository<GBStock>;
+describe('StockService', () => {
+    let service: StockService;
 
-//     beforeEach(() => {
-//         mockRepository = {} as Repository<GBStock>;
-//         service = new StockService(mockRepository);
-//     });
+    beforeEach(async () => {
+        const module: TestingModule = await Test.createTestingModule({
+            providers: [
+                StockService,
+                {
+                    provide: getModelToken(GBStock.name),
+                    useValue: {
+                        new: jest.fn(),
+                        save: jest.fn(),
+                        findByIdAndDelete: jest.fn(),
+                        find: jest.fn(),
+                        findByIdAndUpdate: jest.fn(),
+                    },
+                },
+                {
+                    provide: StockQuantityService,
+                    useValue: {
+                        add: jest.fn(),
+                    },
+                },
+            ],
+        }).compile();
 
-//     describe('add', () => {
-//         it('should add a new stock item', async () => {
-//             const entry: InsertStockRequest = {
-//                 id: 'fd3df093-9909-4f0c-b966-e62eecb58cdc',
-//                 userId: 'user123',
-//                 name: 'item name',
-//                 image: 'base64',
-//                 initialQuantity: 10
-//             };
-//             const mockRecord = new GBStock();
+        service = module.get<StockService>(StockService);
+    });
 
-//             mockRepository.save = jest.fn().mockResolvedValue(mockRecord);
+    it('should be defined', () => {
+        expect(service).toBeDefined();
+    });
 
-//             const result = await service.add(entry);
+    describe('add', () => {
+        it('should add a new stock item and return successful result', async () => {
+            const userId = 'userId';
+            const entry: InsertStockRequest = {
+                name: 'Test Stock',
+                initialQuantity: 10,
+            };
+            const newRecord = { _id: 'recordId', ...entry, userId, created: Date.now(), updated: Date.now() };
+            jest.spyOn(service['stockModel'], 'new').mockReturnValue(newRecord);
+            jest.spyOn(service['stockModel'], 'save').mockResolvedValue(newRecord);
+            jest.spyOn(service['stockQuantityService'], 'add').mockResolvedValue();
 
-//             expect(result).toEqual(new Result(true, expect.objectContaining(entry)));
-//             expect(mockRepository.save).toHaveBeenCalledWith(expect.objectContaining({
-//                 id: entry.id,
-//                 userId: entry.userId,
-//                 name: entry.name,
-//                 image: entry.image
-//             }));
-//         });
+            const result = await service.add(userId, entry);
 
-//         it('should handle errors during addition', async () => {
-//             const entry: InsertStockRequest = {
-//                 id: 'fd3df093-9909-4f0c-b966-e62eecb58cdc',
-//                 userId: 'user123',
-//                 name: 'item name',
-//                 image: 'base64',
-//                 initialQuantity: 10
-//             };
+            expect(result.isSuccess).toBe(true);
+            expect(result.value).toEqual(newRecord);
+            expect(service['stockQuantityService'].add).toHaveBeenCalledWith(newRecord._id, entry.initialQuantity);
+        });
 
-//             mockRepository.save = jest.fn().mockRejectedValue(new Error('Mocked error'));
+        it('should return failed result if there is an error adding stock item', async () => {
+            const userId = 'userId';
+            const entry: InsertStockRequest = {
+                name: 'Test Stock',
+                initialQuantity: 10,
+            };
+            jest.spyOn(service['stockModel'], 'new').mockImplementation(() => { throw new Error('Mock error'); });
 
-//             const result = await service.add(entry);
+            const result = await service.add(userId, entry);
 
-//             expect(result).toEqual(new Result(false));
-//         });
-//     });
+            expect(result.isSuccess).toBe(false);
+        });
+    });
 
-//     describe('remove', () => {
-//         it('should remove a stock item', async () => {
-//             const id = '123';
+    describe('remove', () => {
+        it('should remove a stock item and return successful result', async () => {
+            const id = 'recordId';
+            jest.spyOn(service['stockModel'], 'findByIdAndDelete').mockResolvedValue();
 
-//             mockRepository.softRemove = jest.fn().mockResolvedValue(undefined);
+            const result = await service.remove(id);
 
-//             const result = await service.remove(id);
+            expect(result.isSuccess).toBe(true);
+        });
 
-//             expect(result).toEqual(new Result(true));
-//             expect(mockRepository.softRemove).toHaveBeenCalledWith({ id });
-//         });
+        it('should return failed result if there is an error removing stock item', async () => {
+            const id = 'recordId';
+            jest.spyOn(service['stockModel'], 'findByIdAndDelete').mockImplementation(() => { throw new Error('Mock error'); });
 
-//         it('should handle errors during removal', async () => {
-//             const id = '123';
+            const result = await service.remove(id);
 
-//             mockRepository.softRemove = jest.fn().mockRejectedValue(new Error('Mocked error'));
+            expect(result.isSuccess).toBe(false);
+        });
+    });
 
-//             const result = await service.remove(id);
+    describe('getAll', () => {
+        it('should return all stock items for a user', async () => {
+            const userId = 'userId';
+            const mockRecords: GBStockDocument[] = [{ _id: '1', name: 'Stock 1' }, { _id: '2', name: 'Stock 2' }];
+            jest.spyOn(service['stockModel'], 'find').mockResolvedValue(mockRecords);
 
-//             expect(result).toEqual(new Result(false));
-//         });
-//     });
+            const result = await service.getAll(userId);
 
-//     describe('getAll', () => {
-//         it('should get all stock items for a user', async () => {
-//             const userId = 'user123';
-//             const mockRecords: GBStock[] = [{
-//                 id: 'fd3df093-9909-4f0c-b966-e62eecb58cdc',
-//                 userId: 'user123',
-//                 name: 'item 2',
+            expect(result.isSuccess).toBe(true);
+            expect(result.value).toEqual(mockRecords);
+        });
 
-//             }, {
-//                 id: 'fd3df093-9909-4f0c-b966-e62eecb58cdc',
-//                 userId: 'user123',
-//                 name: 'item 2'
-//             }];
+        it('should return failed result if there is an error getting stock items', async () => {
+            const userId = 'userId';
+            jest.spyOn(service['stockModel'], 'find').mockImplementation(() => { throw new Error('Mock error'); });
 
-//             mockRepository.find = jest.fn().mockResolvedValue(mockRecords);
+            const result = await service.getAll(userId);
 
-//             const result = await service.getAll(userId);
+            expect(result.isSuccess).toBe(false);
+        });
+    });
 
-//             expect(result.isSuccess).toBe(true);
-//             expect(result.value).toEqual(mockRecords);
-//             expect(mockRepository.find).toHaveBeenCalledWith({ where: { userId } });
-//         });
+    describe('update', () => {
+        it('should update a stock item and return successful result', async () => {
+            const id = 'recordId';
+            const item: UpdateStockRequest = { name: 'Updated Stock Name' };
+            const updatedRecord: GBStockDocument = { _id: id, name: item.name };
+            jest.spyOn(service['stockModel'], 'findByIdAndUpdate').mockResolvedValue(updatedRecord);
 
-//         it('should handle errors during stock retrieval', async () => {
-//             const userId = 'user123';
+            const result = await service.update(id, item);
 
-//             mockRepository.find = jest.fn().mockRejectedValue(new Error('Mocked error'));
+            expect(result.isSuccess).toBe(true);
+            expect(result.value).toEqual(updatedRecord);
+        });
 
-//             const result = await service.getAll(userId);
+        it('should return failed result if there is an error updating stock item', async () => {
+            const id = 'recordId';
+            const item: UpdateStockRequest = { name: 'Updated Stock Name' };
+            jest.spyOn(service['stockModel'], 'findByIdAndUpdate').mockImplementation(() => { throw new Error('Mock error'); });
 
-//             expect(result.isSuccess).toBe(false);
-//         });
-//     });
+            const result = await service.update(id, item);
 
-//     describe('update', () => {
-//         it('should update a stock item', async () => {
-//             const item: InsertStockRequest = {
-//                 id: 'fd3df093-9909-4f0c-b966-e62eecb58cdc',
-//                 userId: 'user123',
-//                 name: 'item name',
-//                 image: 'base64',
-//                 initialQuantity: 10
-//             };
-//             const mockRecord: GBStock = { ...item };
+            expect(result.isSuccess).toBe(false);
+        });
+    });
+});
 
-//             mockRepository.findOne = jest.fn().mockResolvedValue(mockRecord);
-//             mockRepository.save = jest.fn().mockResolvedValue(mockRecord);
-
-//             const result = await service.update(item);
-
-//             expect(result.isSuccess).toBe(true);
-//             expect(result.value).toEqual(mockRecord);
-//             expect(mockRepository.findOne).toHaveBeenCalledWith({ where: { id: item.id } });
-//             expect(mockRepository.save).toHaveBeenCalledWith(expect.objectContaining({
-//                 id: item.id,
-//                 userId: item.userId,
-//                 name: item.name,
-//                 image: item.image,
-//                 initialQuantity: item.initialQuantity
-//             }));
-//         });
-
-//         it('should handle errors during stock item update', async () => {
-//             const item: InsertStockRequest = {
-//                 id: 'fd3df093-9909-4f0c-b966-e62eecb58cdc',
-//                 userId: 'user123',
-//                 name: 'item name',
-//                 image: 'base64',
-//                 initialQuantity: 10
-//             };
-//             const mockRecord: GBStock = { ...item };
-
-//             mockRepository.findOne = jest.fn().mockResolvedValue(mockRecord);
-//             mockRepository.save = jest.fn().mockRejectedValue(new Error('Mocked error'));
-
-//             const result = await service.update(item);
-
-//             expect(result.isSuccess).toBe(false);
-//         });
-
-//         it('should return failure result if stock item not found', async () => {
-//             const item: InsertStockRequest = {
-//                 id: 'fd3df093-9909-4f0c-b966-e62eecb58cdc',
-//                 userId: 'user123',
-//                 name: 'item name',
-//                 image: 'base64',
-//                 initialQuantity: 10
-//             };
-
-//             mockRepository.findOne = jest.fn().mockResolvedValue(null);
-
-//             const result = await service.update(item);
-
-//             expect(result.isSuccess).toBe(false);
-//         });
-//     });
-// });

@@ -2,7 +2,6 @@ import { StockQuantityService } from './stock-quantity.service';
 import { Model } from 'mongoose';
 import { Result } from '../../../../dtos/results';
 import { GBStockQuantity, GBStockQuantityDocument } from '../../../../entities/stock-quantity.entity';
-import { StockQuantity } from '../../../../dtos/stock-quantity';
 
 describe('StockQuantityService', () => {
     let service: StockQuantityService;

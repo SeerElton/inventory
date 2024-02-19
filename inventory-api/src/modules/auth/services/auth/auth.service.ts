@@ -76,24 +76,4 @@ export class AuthService {
             return new Result(false);
         }
     }
-
-    async verifyEmail(email: string, code: string): Promise<Result<boolean>> {
-        try {
-            const expectedCode = md5(email + 'GotbotToken23');
-            const user = await this.userModel.findOneAndUpdate(
-                { email, isVerified: false, verificationCode: code },
-                { $set: { isVerified: true } }
-            );
-
-            if (!user) {
-                return new Result(false)
-            }
-
-            return new Result(true)
-
-        } catch (e) {
-            console.error("Error verifying email", e, codes.AuthService_ErrorVerifyingEmail)
-            return new Result(false);
-        }
-    }
 }

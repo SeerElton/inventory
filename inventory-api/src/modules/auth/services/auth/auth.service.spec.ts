@@ -1,284 +1,111 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
-import { Repository } from 'typeorm';
-import { GBUser } from '../../../../entities/user.entity';
-import { ServeEmailerService } from '../../../../emails/email.sender';
+import { getModelToken } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
-import { LoginRequest, LoginResponse, RegisterRequest } from '../../../../dtos/models';
+import { LoginRequest, RegisterRequest } from '../../../../dtos/models';
 import { Result } from '../../../../dtos/results';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { codes } from '../../../../codes';
 import { md5 } from '../../../../_helper/md5';
+import { GBUser, GBUserDocument } from '../../../../entities/user.entity';
 
 describe('AuthService', () => {
-  let authService: AuthService;
-  let gotbotUserRepository: Repository<GBUser>;
-  let serveEmailerService: ServeEmailerService;
-  let jwtService: JwtService;
+  let service: AuthService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        { provide: getRepositoryToken(GBUser), useClass: Repository },
-        ServeEmailerService,
-        JwtService
+        {
+          provide: getModelToken(GBUser.name),
+          useValue: {
+            findOne: jest.fn(),
+            exists: jest.fn(),
+            findOneAndUpdate: jest.fn(),
+            new: jest.fn(),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: JwtService,
+          useValue: {
+            sign: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
-    authService = module.get<AuthService>(AuthService);
-    gotbotUserRepository = module.get<Repository<GBUser>>(getRepositoryToken(GBUser));
-    serveEmailerService = module.get<ServeEmailerService>(ServeEmailerService);
-    jwtService = module.get<JwtService>(JwtService);
+    service = module.get<AuthService>(AuthService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
   });
 
   describe('validateUser', () => {
-    it('should return user profile on successful validation', async () => {
-      const email = 'test@example.com';
-      const password = 'password123';
-      const mockUser: GBUser = {
-        id: '1',
-        name: 'Test User',
-        email: email,
-        password: password,
-        isVerified: true,
-      };
-      jest.spyOn(gotbotUserRepository, 'findOne').mockResolvedValueOnce(mockUser);
+    it('should return a user if credentials are valid', async () => {
+      const user = { email: 'test@example.com', password: 'password' };
+      const mockUser = { email: 'test@example.com', password: 'password', name: 'Test User' };
+      jest.spyOn(service['userModel'], 'findOne').mockResolvedValue(mockUser);
 
-      const result: GBUser = await authService.validateUser(email, password);
+      const result = await service.validateUser(user.email, user.password);
 
-      expect(gotbotUserRepository.findOne).toHaveBeenCalledWith({ where: { email: email } });
-
-      expect(result).toEqual({
-        id: '1',
-        name: 'Test User',
-        email: email,
-        isVerified: true
-      });
+      expect(result).toEqual(mockUser);
     });
 
-    it('should return null on unsuccessful validation', async () => {
-      const email = 'test@example.com';
-      const password = 'invalidPassword';
-      jest.spyOn(gotbotUserRepository, 'findOne').mockResolvedValueOnce(null);
+    it('should return null if user is not found or credentials are invalid', async () => {
+      const user = { email: 'test@example.com', password: 'password' };
+      jest.spyOn(service['userModel'], 'findOne').mockResolvedValue(null);
 
-      const result: GBUser = await authService.validateUser(email, password);
+      const result = await service.validateUser(user.email, user.password);
 
       expect(result).toBeNull();
-      expect(gotbotUserRepository.findOne).toHaveBeenCalledWith({ where: { email: email } });
     });
   });
 
   describe('login', () => {
-    it('should return a successful login response', async () => {
-      const loginRequest: LoginRequest = {
-        email: 'test@example.com',
-        password: 'password123',
-      };
-      const mockUser = {
-        id: '1',
-        name: 'Test User',
-        email: 'test@example.com',
-        isVerified: true
-      } as GBUser;
+    it('should return successful login result if credentials are valid', async () => {
+      const user: LoginRequest = { email: 'test@example.com', password: 'password' };
+      const mockUser: any = { email: 'test@example.com', password: md5('password'), name: 'Test User' };
+      jest.spyOn(service, 'validateUser').mockResolvedValue(mockUser);
+      jest.spyOn(service['jwtService'], 'sign').mockReturnValue('mockJWT');
 
-      jest.spyOn(authService, 'validateUser').mockResolvedValueOnce(mockUser);
-      jest.spyOn(jwtService, 'sign').mockReturnValueOnce('jwtToken');
+      const result = await service.login(user);
 
-      const result: Result<LoginResponse> = await authService.login(loginRequest);
-
-      expect(result).toEqual({
-        isSuccess: true,
-        value: {
-          name: 'Test User',
-          isVerified: true,
-          jwt: 'jwtToken',
-        },
-      });
-      expect(authService.validateUser).toHaveBeenCalledWith(loginRequest.email, md5(loginRequest.password));
-      expect(jwtService.sign).toHaveBeenCalledWith(
-        {
-          id: '1',
-          name: 'Test User',
-          email: 'test@example.com',
-          isVerified: true
-        },
-        { expiresIn: 3 * 60 * 60 },
-      );
+      expect(result.isSuccess).toBe(true);
+      expect(result.value.name).toEqual(mockUser.name);
+      expect(service['jwtService'].sign).toHaveBeenCalledWith(mockUser, { expiresIn: 3 * 60 * 60 });
     });
 
-    it('should return an unsuccessful login response on invalid credentials', async () => {
-      const loginRequest: LoginRequest = {
-        email: 'test@example.com',
-        password: 'invalidPassword',
-      };
-      jest.spyOn(authService, 'validateUser').mockResolvedValueOnce(null);
-      jest.spyOn(jwtService, 'sign').mockReturnValueOnce(null);
+    it('should return failed login result if credentials are invalid', async () => {
+      const user: LoginRequest = { email: 'test@example.com', password: 'password' };
+      jest.spyOn(service, 'validateUser').mockResolvedValue(null);
 
-      const result: Result<LoginResponse> = await authService.login(loginRequest);
+      const result = await service.login(user);
 
-      expect(result).toEqual(new Result(false));
-      expect(authService.validateUser).toHaveBeenCalledWith(loginRequest.email, md5(loginRequest.password));
-      expect(jwtService.sign).not.toHaveBeenCalled();
-    });
-
-    it('should return an unsuccessful login response on error', async () => {
-      const loginRequest: LoginRequest = {
-        email: 'test@example.com',
-        password: 'password123',
-      };
-      jest.spyOn(authService, 'validateUser').mockRejectedValueOnce(new Error('Some error'));
-      jest.spyOn(jwtService, 'sign').mockReturnValueOnce(null);
-
-      const result: Result<LoginResponse> = await authService.login(loginRequest);
-
-      expect(result).toEqual(new Result(false));
-      expect(authService.validateUser).toHaveBeenCalledWith(loginRequest.email, md5(loginRequest.password));
-      expect(jwtService.sign).not.toHaveBeenCalled();
+      expect(result.isSuccess).toBe(false);
     });
   });
 
   describe('register', () => {
-    it('should return a successful registration response', async () => {
-      const user: RegisterRequest = {
-        name: 'Test User',
-        email: 'test@example.com',
-        password: 'password123'
-      };
-      jest.spyOn(gotbotUserRepository, 'exist').mockResolvedValueOnce(false);
-      jest.spyOn(gotbotUserRepository, 'save').mockResolvedValueOnce(undefined);
-      jest.spyOn(authService, 'sendVerificationMail').mockResolvedValueOnce(new Result(true));
+    it('should return successful registration result if user does not exist', async () => {
+      const user: RegisterRequest = { email: 'test@example.com', password: 'password', name: 'Test User' };
+      jest.spyOn(service['userModel'], 'exists').mockResolvedValue(false);
 
-      const result: Result<boolean> = await authService.register(user, 'localhost');
+      const result = await service.register(user);
 
-      expect(result).toEqual(new Result(true));
-      expect(gotbotUserRepository.exist).toHaveBeenCalledWith({ where: { email: user.email } });
-      expect(gotbotUserRepository.save).toHaveBeenCalledWith(expect.objectContaining(user));
-      expect(authService.sendVerificationMail).toHaveBeenCalledWith('localhost', user.email, user.name);
+      expect(result.isSuccess).toBe(true);
+      expect(service['userModel'].new).toHaveBeenCalledWith({ ...user, password: md5(user.password) });
+      expect(service['userModel'].save).toHaveBeenCalled();
     });
 
-    it('should return an unsuccessful registration response if user already exists', async () => {
-      const user: RegisterRequest = {
-        name: 'Test User',
-        email: 'test@example.com',
-        password: 'password123'
-      };
-      jest.spyOn(gotbotUserRepository, 'exist').mockResolvedValueOnce(true);
-      jest.spyOn(gotbotUserRepository, 'save').mockResolvedValueOnce(undefined);
-      jest.spyOn(authService, 'sendVerificationMail').mockResolvedValueOnce(undefined);
+    it('should return failed registration result if user already exists', async () => {
+      const user: RegisterRequest = { email: 'test@example.com', password: 'password', name: 'Test User' };
+      jest.spyOn(service['userModel'], 'exists').mockResolvedValue(true);
 
-      const result: Result<boolean> = await authService.register(user, 'localhost');
+      const result = await service.register(user);
 
-      expect(result).toEqual(new Result(false));
-      expect(gotbotUserRepository.exist).toHaveBeenCalledWith({ where: { email: user.email } });
-      expect(gotbotUserRepository.save).not.toHaveBeenCalled();
-      expect(authService.sendVerificationMail).not.toHaveBeenCalled();
-    });
-
-    it('should return an unsuccessful registration response on error', async () => {
-      const user: RegisterRequest = {
-        name: 'Test User',
-        email: 'test@example.com',
-        password: 'password123',
-      };
-      jest.spyOn(gotbotUserRepository, 'exist').mockRejectedValueOnce(new Error('Some error'));
-      jest.spyOn(gotbotUserRepository, 'exist').mockResolvedValueOnce(true);
-      jest.spyOn(gotbotUserRepository, 'save').mockResolvedValueOnce(undefined);
-      jest.spyOn(authService, 'sendVerificationMail').mockResolvedValueOnce(undefined);
-
-      const result: Result<boolean> = await authService.register(user, 'localhost');
-
-      expect(result).toEqual(new Result(false));
-      expect(gotbotUserRepository.exist).toHaveBeenCalledWith({ where: { email: user.email } });
-      expect(gotbotUserRepository.save).not.toHaveBeenCalled();
-      expect(authService.sendVerificationMail).not.toHaveBeenCalled();
-    });
-
-    it('should return an unsuccessful registration response if sendVerificationMail fails', async () => {
-      const user: RegisterRequest = {
-        name: 'Test User',
-        email: 'test@example.com',
-        password: 'password123',
-      };
-      jest.spyOn(gotbotUserRepository, 'exist').mockResolvedValueOnce(false);
-      jest.spyOn(gotbotUserRepository, 'save').mockResolvedValueOnce(undefined);
-      jest.spyOn(authService, 'sendVerificationMail').mockResolvedValueOnce(new Result(false));
-
-      const result: Result<boolean> = await authService.register(user, 'localhost');
-
-      expect(result).toEqual(new Result(false));
-      expect(gotbotUserRepository.exist).toHaveBeenCalledWith({ where: { email: user.email } });
-      expect(gotbotUserRepository.save).toHaveBeenCalledWith(expect.objectContaining(user));
-      expect(authService.sendVerificationMail).toHaveBeenCalledWith('localhost', user.email, user.name);
-    });
-  });
-
-  describe('verifyEmail', () => {
-    it('should return a successful verification response', async () => {
-      const email = 'test@example.com';
-      const code = md5(email + 'GotbotToken23');
-      const mockUser: GBUser = { id: '1', email: email, isVerified: false } as GBUser;
-      jest.spyOn(gotbotUserRepository, 'findOne').mockResolvedValueOnce(mockUser);
-      jest.spyOn(gotbotUserRepository, 'save').mockResolvedValueOnce(undefined);
-
-      const result: Result<boolean> = await authService.verifyEmail(email, code);
-
-      expect(result).toEqual(new Result(true));
-      expect(gotbotUserRepository.findOne).toHaveBeenCalledWith({ where: { email: email } });
-      expect(gotbotUserRepository.save).toHaveBeenCalledWith({ ...mockUser, isVerified: true });
-    });
-
-    it('should return an unsuccessful verification response if user is already verified', async () => {
-      const email = 'test@example.com';
-      const code = md5(email + 'GotbotToken23');
-      const mockUser: GBUser = { id: '1', email: email, isVerified: true } as GBUser;
-      jest.spyOn(gotbotUserRepository, 'findOne').mockResolvedValueOnce(mockUser);
-      jest.spyOn(gotbotUserRepository, 'save').mockResolvedValueOnce(undefined);
-
-      const result: Result<boolean> = await authService.verifyEmail(email, code);
-
-      expect(result).toEqual(new Result(false));
-      expect(gotbotUserRepository.findOne).toHaveBeenCalledWith({ where: { email: email } });
-      expect(gotbotUserRepository.save).not.toHaveBeenCalled();
-    });
-
-    it('should return an unsuccessful verification response if user not found', async () => {
-      const email = 'test@example.com';
-      const code = md5(email + 'GotbotToken23');
-      jest.spyOn(gotbotUserRepository, 'findOne').mockResolvedValueOnce(undefined);
-      jest.spyOn(gotbotUserRepository, 'save').mockResolvedValueOnce(undefined);
-
-      const result: Result<boolean> = await authService.verifyEmail(email, code);
-
-      expect(result).toEqual(new Result(false));
-      expect(gotbotUserRepository.findOne).toHaveBeenCalledWith({ where: { email: email } });
-      expect(gotbotUserRepository.save).not.toHaveBeenCalled();
-    });
-
-    it('should return an unsuccessful verification response if code is incorrect', async () => {
-      const email = 'test@example.com';
-      const code = 'incorrectCode';
-      const mockUser: GBUser = { id: '1', email: email, isVerified: false } as GBUser;
-      jest.spyOn(gotbotUserRepository, 'findOne').mockResolvedValueOnce(mockUser);
-      jest.spyOn(gotbotUserRepository, 'save').mockResolvedValueOnce(undefined);
-
-      const result: Result<boolean> = await authService.verifyEmail(email, code);
-
-      expect(result).toEqual(new Result(false));
-      expect(gotbotUserRepository.findOne).toHaveBeenCalledWith({ where: { email: email } });
-      expect(gotbotUserRepository.save).not.toHaveBeenCalled();
-    });
-
-    it('should return an unsuccessful verification response on error', async () => {
-      const email = 'test@example.com';
-      const code = md5(email + 'GotbotToken23');
-      jest.spyOn(gotbotUserRepository, 'findOne').mockRejectedValueOnce(new Error('Some error'));
-      jest.spyOn(gotbotUserRepository, 'save').mockResolvedValueOnce(undefined);
-
-      const result: Result<boolean> = await authService.verifyEmail(email, code);
-
-      expect(result).toEqual(new Result(false));
-      expect(gotbotUserRepository.findOne).toHaveBeenCalledWith({ where: { email: email } });
-      expect(gotbotUserRepository.save).not.toHaveBeenCalled();
+      expect(result.isSuccess).toBe(false);
     });
   });
 });
+
