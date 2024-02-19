@@ -35,8 +35,7 @@ import { SidebarComponent } from './common/sidebar/sidebar.component';
     NgxSpinnerModule,
     ToastrModule.forRoot({
       timeOut: 10000,
-      preventDuplicates: true,
-      positionClass: 'toast-center',
+      preventDuplicates: true
     })
   ],
   providers: [

@@ -3,6 +3,11 @@ app-sidebar {
 }
 
 .wrapper {
-    width: calc(100vw - 300px);
+    // width: calc(100vw - 300px);
+    z-index: 1;
+}
+
+.wrapper-full {
+    width: calc(100vw);
     z-index: 1;
 }
